@@ -11,29 +11,21 @@ router.get('/:unidadeId', async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `
-      SELECT
-        p.id        AS produto_id,
-        p.codigo    AS produto_codigo,
-        p.descricao AS produto_descricao,
+  `
+  SELECT
+    p.id AS produto_id,
+    p.descricao AS produto,
+    e.estoque AS quantidade
+  FROM estoque e
+  JOIN embalagem emb ON emb.id = e.embalagemid
+  JOIN produto p ON p.id = emb.produtoid
+  WHERE e.unidadenegocioid = $1
+    AND e.estoque > 0
+  ORDER BY p.descricao
+  `,
+  [req.params.unidadeId]
+);
 
-        e.id        AS estoque_id,
-        e.estoque   AS estoque,
-
-        emb.id          AS embalagem_id,
-        emb.descricao   AS embalagem_descricao,
-        emb.quantidade  AS embalagem_quantidade
-      FROM estoque e
-      JOIN embalagem emb ON emb.id = e.embalagemid
-      JOIN produto p     ON p.id = emb.produtoid
-      WHERE e.unidadenegocioid = $1
-        AND e.estoque <> 0
-        AND p.status = 'A'
-      ORDER BY p.descricao
-      LIMIT $2 OFFSET $3
-      `,
-      [unidadeId, limit, offset]
-    )
 
     res.json({
       unidadeId,
