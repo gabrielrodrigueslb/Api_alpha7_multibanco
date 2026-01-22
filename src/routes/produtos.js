@@ -32,30 +32,21 @@ router.get('/:unidadeId', async (req, res) => {
         p.descricao AS produto,
         e.estoque::float AS quantidade,
 
-        -- preço normal
+        -- preço base (loja > geral)
         COALESCE(
           peu.precovenda,
           emb.precovenda
         )::numeric AS preco_venda,
 
-        -- preço promocional
+        -- preço promocional (se existir)
         mo.precooferta::numeric AS preco_promocional,
 
-        -- preço final (regra de prioridade)
+        -- preço final (promo > loja > geral)
         CASE
           WHEN mo.precooferta IS NOT NULL THEN mo.precooferta
           WHEN peu.precovenda IS NOT NULL THEN peu.precovenda
           ELSE emb.precovenda
-        END::numeric AS preco_final,
-
-        (mo.precooferta IS NOT NULL) AS tem_oferta,
-
-        CASE
-          WHEN mo.precooferta IS NOT NULL THEN 'OFERTA'
-          WHEN peu.precovenda IS NOT NULL THEN 'LOJA'
-          WHEN emb.precovenda IS NOT NULL THEN 'GERAL'
-          ELSE 'INDEFINIDO'
-        END AS origem_preco
+        END::numeric AS preco_final
 
       FROM estoque e
       JOIN embalagem emb ON emb.id = e.embalagemid
@@ -80,7 +71,7 @@ router.get('/:unidadeId', async (req, res) => {
       [unidadeId, limit, offset]
     )
 
-    // 🧾 Resposta final
+    // 🧾 Resposta final (enxuta)
     res.json({
       unidadeId,
       page,
@@ -91,13 +82,9 @@ router.get('/:unidadeId', async (req, res) => {
         produto_id: r.produto_id,
         produto: r.produto,
         quantidade: r.quantidade,
-        precos: {
-          preco_venda: r.preco_venda !== null ? Number(r.preco_venda) : null,
-          preco_promocional: r.preco_promocional !== null ? Number(r.preco_promocional) : null,
-          preco_final: r.preco_final !== null ? Number(r.preco_final) : null,
-          tem_oferta: r.tem_oferta,
-          origem_preco: r.origem_preco
-        }
+        preco_venda: r.preco_venda !== null ? Number(r.preco_venda) : null,
+        preco_promocional: r.preco_promocional !== null ? Number(r.preco_promocional) : null,
+        preco_final: r.preco_final !== null ? Number(r.preco_final) : null
       }))
     })
   } catch (err) {
