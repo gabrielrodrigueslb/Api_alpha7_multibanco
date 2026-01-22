@@ -1,4 +1,0 @@
-
-
-GET http://145.223.27.100:4450/produtos/99782 HTTP/1.1 
-Content-Type: application/json 

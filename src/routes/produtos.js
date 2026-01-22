@@ -10,12 +10,11 @@ router.get('/:unidadeId', async (req, res) => {
   const offset = (page - 1) * limit
 
   try {
+    // 🔢 Total de produtos com estoque
     const totalResult = await pool.query(
       `
       SELECT COUNT(*) AS total
       FROM estoque e
-      JOIN embalagem emb ON emb.id = e.embalagemid
-      JOIN produto p ON p.id = emb.produtoid
       WHERE e.unidadenegocioid = $1
         AND e.estoque > 0
       `,
@@ -25,30 +24,81 @@ router.get('/:unidadeId', async (req, res) => {
     const total = Number(totalResult.rows[0].total)
     const totalPages = Math.ceil(total / limit)
 
+    // 📦 Produtos + preços
     const { rows } = await pool.query(
       `
       SELECT
         p.id AS produto_id,
         p.descricao AS produto,
-        e.estoque::float AS quantidade
+        e.estoque::float AS quantidade,
+
+        -- preço normal
+        COALESCE(
+          peu.precovenda,
+          emb.precovenda
+        )::numeric AS preco_venda,
+
+        -- preço promocional
+        mo.precooferta::numeric AS preco_promocional,
+
+        -- preço final (regra de prioridade)
+        CASE
+          WHEN mo.precooferta IS NOT NULL THEN mo.precooferta
+          WHEN peu.precovenda IS NOT NULL THEN peu.precovenda
+          ELSE emb.precovenda
+        END::numeric AS preco_final,
+
+        (mo.precooferta IS NOT NULL) AS tem_oferta,
+
+        CASE
+          WHEN mo.precooferta IS NOT NULL THEN 'OFERTA'
+          WHEN peu.precovenda IS NOT NULL THEN 'LOJA'
+          WHEN emb.precovenda IS NOT NULL THEN 'GERAL'
+          ELSE 'INDEFINIDO'
+        END AS origem_preco
+
       FROM estoque e
       JOIN embalagem emb ON emb.id = e.embalagemid
       JOIN produto p ON p.id = emb.produtoid
+
+      LEFT JOIN precoembalagemunidadenegocio peu
+        ON peu.embalagemid = emb.id
+       AND peu.unidadenegocioid = e.unidadenegocioid
+
+      LEFT JOIN melhoroferta mo
+        ON mo.embalagemid = emb.id
+       AND mo.unidadenegocioid = e.unidadenegocioid
+       AND (mo.vigenciainicio IS NULL OR mo.vigenciainicio <= NOW())
+       AND (mo.vigenciatermino IS NULL OR mo.vigenciatermino >= NOW())
+
       WHERE e.unidadenegocioid = $1
         AND e.estoque > 0
+
       ORDER BY p.descricao
       LIMIT $2 OFFSET $3
       `,
       [unidadeId, limit, offset]
     )
 
+    // 🧾 Resposta final
     res.json({
       unidadeId,
       page,
       limit,
       total,
       totalPages,
-      data: rows
+      data: rows.map(r => ({
+        produto_id: r.produto_id,
+        produto: r.produto,
+        quantidade: r.quantidade,
+        precos: {
+          preco_venda: r.preco_venda !== null ? Number(r.preco_venda) : null,
+          preco_promocional: r.preco_promocional !== null ? Number(r.preco_promocional) : null,
+          preco_final: r.preco_final !== null ? Number(r.preco_final) : null,
+          tem_oferta: r.tem_oferta,
+          origem_preco: r.origem_preco
+        }
+      }))
     })
   } catch (err) {
     console.error('Erro produtos:', err)
