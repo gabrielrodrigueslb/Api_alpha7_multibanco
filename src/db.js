@@ -21,9 +21,9 @@ export const pool = new Pool({
   user: env.db.user,
   password: env.db.password?.replace(/^"(.*)"$/, '$1').trim(),
   ssl: env.db.ssl,
-  max: 10,
+  max: 4,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000
+  connectionTimeoutMillis: 5000
 });
 
 
