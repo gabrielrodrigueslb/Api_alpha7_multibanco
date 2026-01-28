@@ -28,7 +28,7 @@ router.get('/:unidadeId', async (req, res) => {
     const { rows } = await pool.query(
       `
       SELECT
-        p.id AS produto_id,
+        emb.id AS produto_id,
         p.descricao AS produto,
         e.estoque::float AS quantidade,
 
