@@ -6,7 +6,7 @@ const router = express.Router()
 router.get('/:unidadeId', async (req, res) => {
   const { unidadeId } = req.params
   const page = Math.max(Number(req.query.page ?? 1), 1)
-  const limit = Math.min(Number(req.query.limit ?? 50), 100)
+  const limit = Math.min(Number(req.query.limit ?? 50), 2000)
   const offset = (page - 1) * limit
 
   try {
