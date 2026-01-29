@@ -9,13 +9,28 @@ import produtosRoute from './routes/produtos.js'
 const app = express()
 
 app.use(cors({
-  origin: [
-    'http://localhost:5173', // Vite
-    'http://localhost:3000', // se usar outro front
-  ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true)
+
+    if (origin.startsWith('chrome-extension://')) {
+      return callback(null, true)
+    }
+
+    const allowed = [
+      'http://localhost:5173',
+      'http://localhost:3000'
+    ]
+
+    if (allowed.includes(origin)) {
+      return callback(null, true)
+    }
+
+    return callback(new Error('Not allowed by CORS'))
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
 }))
+
 
 app.use(express.json())
 
